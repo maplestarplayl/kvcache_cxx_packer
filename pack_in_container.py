@@ -5,10 +5,10 @@
 将构建结果输出到挂载目录
 
 使用示例:
-  python3 pack_in_container.py                        # 自动检测当前系统
+  python3 pack_in_container.py                        # 自动检测当前系统和架构
   python3 pack_in_container.py --system-name ubuntu20.04
-  python3 pack_in_container.py --system-name ubuntu22.04
-  python3 pack_in_container.py --system-name manylinux_2014
+  python3 pack_in_container.py --system-name ubuntu22.04 --arch arm64  # 指定ARM64架构
+  python3 pack_in_container.py --system-name manylinux_2014 --arch amd64
   python3 pack_in_container.py --system-name ubuntu20.04 --image custom:image  # 自定义镜像
 """
 
@@ -389,7 +389,7 @@ CMD ["python3", "pack.py", "local", "--system-name", "{self.system_name}"]
 
     def build_docker_image(self):
         """构建Docker镜像"""
-        print(f"Building Docker image: {self.build_image_name}")
+        print(f"Building Docker image for {self.system_name}...")
 
         # 准备构建上下文
         self.prepare_build_context()
@@ -398,10 +398,20 @@ CMD ["python3", "pack.py", "local", "--system-name", "{self.system_name}"]
         self.create_dockerfile()
 
         # 构建镜像 - 支持多架构
-        platform_arg = ""
-        if "DOCKER_DEFAULT_PLATFORM" in os.environ:
-            platform_arg = f"--platform {os.environ['DOCKER_DEFAULT_PLATFORM']}"
-            print(f"Using platform: {os.environ['DOCKER_DEFAULT_PLATFORM']}")
+        # 根据架构设置平台参数
+        arch_to_platform = {
+            "amd64": "linux/amd64",
+            "arm64": "linux/arm64",
+            "arm": "linux/arm/v7",
+        }
+        
+        platform = arch_to_platform.get(self.arch, f"linux/{self.arch}")
+        platform_arg = f"--platform {platform}"
+        
+        print(f"Building for platform: {platform} (arch: {self.arch})")
+        
+        # 设置环境变量供其他方法使用
+        os.environ['DOCKER_DEFAULT_PLATFORM'] = platform
 
         cmd = get_docker_command(f"docker build {platform_arg} -t {self.build_image_name} {self.build_dir}")
         self.run_command(cmd)

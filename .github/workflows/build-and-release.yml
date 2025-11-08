@@ -73,14 +73,35 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Ubuntu 20.04"
+          - name: "Ubuntu 20.04 AMD64"
             system_name: "ubuntu20.04"
+            arch: "amd64"
+            platform: "linux/amd64"
           
-          - name: "Ubuntu 22.04"
+          - name: "Ubuntu 20.04 ARM64"
+            system_name: "ubuntu20.04"
+            arch: "arm64"
+            platform: "linux/arm64"
+          
+          - name: "Ubuntu 22.04 AMD64"
             system_name: "ubuntu22.04"
+            arch: "amd64"
+            platform: "linux/amd64"
           
-          - name: "ManyLinux 2014"
+          - name: "Ubuntu 22.04 ARM64"
+            system_name: "ubuntu22.04"
+            arch: "arm64"
+            platform: "linux/arm64"
+          
+          - name: "ManyLinux 2014 AMD64"
             system_name: "manylinux_2014"
+            arch: "amd64"
+            platform: "linux/amd64"
+          
+          - name: "ManyLinux 2014 ARM64"
+            system_name: "manylinux_2014"
+            arch: "arm64"
+            platform: "linux/arm64"
     
     runs-on: ubuntu-latest
 
@@ -94,6 +115,16 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.8'
+    
+    # 设置 QEMU 以支持多架构构建
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: ${{ matrix.platform }}
+    
+    # 设置 Docker Buildx（虽然我们不用 buildx 构建，但它提供了更好的多架构支持）
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
         
     - name: Verify Docker availability
       run: |
@@ -105,14 +136,20 @@ jobs:
           exit 1
         fi
         
+        # 验证 QEMU 和多架构支持
+        echo "Checking available platforms:"
+        docker buildx ls
+        
     - name: Build Packages using Container
       run: |
         # 显示系统信息
         echo "Building for system: ${{ matrix.system_name }}"
-        echo "Architecture: $(uname -m)"
+        echo "Target architecture: ${{ matrix.arch }}"
+        echo "Host architecture: $(uname -m)"
+        echo "Docker platform: ${{ matrix.platform }}"
         
-        # 使用 pack_in_container.py 脚本进行构建
-        python3 pack_in_container.py --system-name ${{ matrix.system_name }}
+        # 使用 pack_in_container.py 脚本进行构建，指定架构
+        python3 pack_in_container.py --system-name ${{ matrix.system_name }} --arch ${{ matrix.arch }}
         
     - name: Package Build Output
       run: |
@@ -121,8 +158,8 @@ jobs:
           echo "✅ Found build output in .output directory:"
           ls -la .output/
           
-          # 获取架构信息
-          ARCH=$(uname -m)
+          # 使用 matrix 中指定的架构，而不是主机架构
+          ARCH="${{ matrix.arch }}"
           
           # 创建tar包文件名
           TAR_NAME="output_${{ matrix.system_name }}_${ARCH}.tar.gz"

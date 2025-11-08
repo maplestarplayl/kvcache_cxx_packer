@@ -19,8 +19,15 @@
 # 直接构建（需要 Ubuntu 20.04 环境）
 python3 pack.py
 
-# 使用容器构建（推荐）
+# 使用容器构建（推荐）- 自动检测架构
 python3 pack_in_container.py
+
+# 指定架构构建
+python3 pack_in_container.py --arch amd64    # 构建 AMD64 版本
+python3 pack_in_container.py --arch arm64    # 构建 ARM64 版本
+
+# 指定系统和架构
+python3 pack_in_container.py --system-name ubuntu22.04 --arch arm64
 ```
 
 ### GitHub Actions 自动构建
@@ -47,34 +54,41 @@ git push origin v1.0.0
 
 2. GitHub Actions 将自动：
    - 为 amd64 和 arm64 架构构建包
-   - 创建 `pack_amd64.tar.gz` 和 `pack_arm64.tar.gz`
+   - 支持多个系统：Ubuntu 20.04、Ubuntu 22.04、ManyLinux 2014
+   - 创建 `output_{system}_{arch}.tar.gz` 文件（例如：`output_ubuntu20.04_amd64.tar.gz`、`output_manylinux_2014_arm64.tar.gz`）
    - 生成 SHA256 校验和
-   - 创建 GitHub Release 并上传文件
+   - 创建 GitHub Release 并上传所有架构的文件
 
 ## 📋 输出结果
 
 构建完成后，输出目录包含：
 
-- `pack_{arch}.tar.gz` - 编译好的库文件包
-- `pack_{arch}.tar.gz.sha256` - SHA256 校验和
+- `output_{system}_{arch}.tar.gz` - 编译好的库文件包（例如：`output_ubuntu20.04_arm64.tar.gz`）
+- `output_{system}_{arch}.tar.gz.sha256` - SHA256 校验和
 - `build_summary.txt` - 构建摘要
 - `build_report.json` - 详细构建报告
 
 ## 🚀 使用方法
 
-1. 下载对应架构的包：
+1. 下载对应架构和系统的包：
 ```bash
-# 下载并验证
-wget https://github.com/your-repo/releases/download/v1.0.0/pack_amd64.tar.gz
-wget https://github.com/your-repo/releases/download/v1.0.0/pack_amd64.tar.gz.sha256
-sha256sum -c pack_amd64.tar.gz.sha256
+# AMD64 架构示例
+wget https://github.com/AI-Infra-Team/kvcache_cxx_packer/releases/download/v1.0.0/output_ubuntu20.04_amd64.tar.gz
+wget https://github.com/AI-Infra-Team/kvcache_cxx_packer/releases/download/v1.0.0/output_ubuntu20.04_amd64.tar.gz.sha256
+sha256sum -c output_ubuntu20.04_amd64.tar.gz.sha256
+
+# ARM64 架构示例
+wget https://github.com/AI-Infra-Team/kvcache_cxx_packer/releases/download/v1.0.0/output_ubuntu20.04_arm64.tar.gz
+wget https://github.com/AI-Infra-Team/kvcache_cxx_packer/releases/download/v1.0.0/output_ubuntu20.04_arm64.tar.gz.sha256
+sha256sum -c output_ubuntu20.04_arm64.tar.gz.sha256
 ```
 
 2. 解压并使用：
 ```bash
 # 解压到指定目录
 mkdir -p /opt/kvcache-deps
-tar -xzf pack_amd64.tar.gz -C /opt/kvcache-deps
+tar -xzf output_ubuntu20.04_amd64.tar.gz -C /opt/kvcache-deps
+# 或 ARM64: tar -xzf output_ubuntu20.04_arm64.tar.gz -C /opt/kvcache-deps
 ```
 
 3. 在 CMake 项目中使用：
@@ -130,18 +144,45 @@ PACKS = {
 3. 在容器中执行构建
 4. 将结果挂载到主机目录
 
-## 📊 构建状态
+## 🏗️ 架构支持
 
-- ✅ **AMD64**: 完全支持
-- ✅ **ARM64**: 通过 QEMU 模拟支持
+### 支持的架构
 
-## 🏗️ GitHub Actions 环境
+| 架构 | 支持状态 | 说明 |
+|------|---------|------|
+| **AMD64 (x86_64)** | ✅ 原生支持 | 在 AMD64 主机上原生构建 |
+| **ARM64 (aarch64)** | ✅ 完整支持 | 通过 Docker QEMU 模拟或 ARM64 主机 |
+| **ARM (armv7)** | ⚠️ 实验性 | 部分支持，需手动测试 |
 
-- **Runner**: Ubuntu 22.04 (GitHub Actions)
-- **Container**: Ubuntu 20.04 (Docker)
-- **多架构支持**: 通过 Docker Buildx 和 QEMU 模拟
+### 支持的系统
 
-> 注意：GitHub Actions runner 使用 Ubuntu 22.04，但构建容器仍使用 Ubuntu 20.04 以确保兼容性。Docker 会自动拉取对应架构的 ubuntu:20.04 镜像。
+| 系统 | AMD64 | ARM64 | 镜像 |
+|------|-------|-------|------|
+| Ubuntu 20.04 | ✅ | ✅ | `ubuntu:20.04` |
+| Ubuntu 22.04 | ✅ | ✅ | `ubuntu:22.04` |
+| ManyLinux 2014 | ✅ | ✅ | `dockcross/manylinux2014-x64` / `dockcross/manylinux2014-aarch64` |
+
+### GitHub Actions 多架构构建
+
+GitHub Actions 工作流会自动为以下组合构建：
+- Ubuntu 20.04 (AMD64 + ARM64)
+- Ubuntu 22.04 (AMD64 + ARM64)
+- ManyLinux 2014 (AMD64 + ARM64)
+
+总共生成 **6 个构建产物**，每个都包含完整的库文件包。
+
+### 技术实现
+
+- **QEMU 模拟**: 使用 `docker/setup-qemu-action` 启用跨架构构建
+- **Docker Buildx**: 提供多平台构建支持
+- **平台参数**: 自动为 Docker 添加 `--platform linux/arm64` 等参数
+- **架构检测**: 自动检测主机架构或通过 `--arch` 参数指定
+
+### 性能说明
+
+- **原生构建** (在对应架构主机上): 最快
+- **QEMU 模拟** (在 AMD64 上模拟 ARM64): 较慢（约 2-5 倍时间）
+- **建议**: 生产环境推荐使用原生 ARM64 runner 或预构建的包
 
 ## 🤝 贡献
 
