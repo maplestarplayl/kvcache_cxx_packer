@@ -97,11 +97,11 @@ jobs:
             system_name: "manylinux_2014"
             arch: "amd64"
             platform: "linux/amd64"
-          
-          - name: "ManyLinux 2014 ARM64"
-            system_name: "manylinux_2014"
-            arch: "arm64"
-            platform: "linux/arm64"
+          # 暂时禁用 ManyLinux ARM64 构建
+          # - name: "ManyLinux 2014 ARM64"
+          #   system_name: "manylinux_2014"
+          #   arch: "arm64"
+          #   platform: "linux/arm64"
     
     runs-on: ubuntu-latest
 
