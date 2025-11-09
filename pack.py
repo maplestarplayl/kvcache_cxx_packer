@@ -43,17 +43,19 @@ PACKS = {
     "https://github.com/AI-Infra-Team/websocketpp":{
         "branch": "master",
         "c++": 17,
-        "dependencies": ["boost"],
+        "dependencies": ["boost_full"],
         "build_type": "Release",
         "define": [
             ["BUILD_STATIC_LIBS", "ON"],
             ["BUILD_SHARED_LIBS", "OFF"],
+            ["BUILD_TESTS", "OFF"],
+            ["BUILD_EXAMPLES", "OFF"],
         ],
     },
     "https://github.com/AI-Infra-Team/cpprestsdk":{
         "branch": "master",
         "c++": 17,
-        "dependencies": ["websocketpp","boost"],
+        "dependencies": ["websocketpp","boost_full"],
         "build_type": "Release",
         "define": [
             ["BUILD_STATIC_LIBS", "ON"],

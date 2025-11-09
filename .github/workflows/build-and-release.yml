@@ -323,3 +323,4 @@ jobs:
           --notes-file release-notes.md \
           --draft="$DRAFT" \
           --prerelease="$PRERELEASE"
+
